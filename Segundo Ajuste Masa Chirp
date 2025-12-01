@@ -1,0 +1,53 @@
+# =============================
+# Ajuste Robusto
+# =============================
+def robust_chirp_fit(f, t, n_iterations=3):
+    """Ajuste robusto eliminando outliers iterativamente"""
+
+    for iteration in range(n_iterations):
+        # Ajuste inicial
+        popt, pcov = curve_fit(chirp_func, f, t, p0=[0, 1e-5], maxfev=5000)
+        tc, b = popt
+
+        # Calcular residuos
+        t_pred = chirp_func(f, tc, b)
+        residuals = t - t_pred
+        std_residuals = np.std(residuals)
+
+        # Eliminar outliers (> 3 sigma)
+        mask = np.abs(residuals) < 3 * std_residuals
+        f_clean = f[mask]
+        t_clean = t[mask]
+
+        print(f"Iteración {iteration+1}: {len(f_clean)} puntos, b = {b:.6e}")
+
+        if len(f_clean) < 10:  # Muy pocos puntos
+            break
+
+        f, t = f_clean, t_clean
+
+    return curve_fit(chirp_func, f, t, p0=[tc, b], maxfev=5000)
+
+# Usar ajuste robusto
+try:
+    popt, pcov = robust_chirp_fit(f_insp, t_insp_corrected)
+    tc_fit, b_fit = popt
+
+    print(f"\n=== RESULTADO FINAL ===")
+    print(f"b ajustado: {b_fit:.6e} ")
+    print(f"tc ajustado: {tc_fit:.6f} s")
+
+    # Calcular masa chirp
+    M_chirp_kg = (5 / (256 * pi**(8/3) * b_fit))**(3/5) * (c**3 / G)
+    M_chirp_solar = M_chirp_kg / M_sun
+
+    print(f"Masa chirp estimada: {M_chirp_solar:.2f} M_sun")
+    print(f"Masa chirp reportada (GWTC-1): 28.1 M_sun")
+    print(f"Diferencia: {abs(M_chirp_solar - 28.1):.2f} M_sun")
+
+except Exception as e:
+    print(f"Error en el ajuste: {e}")
+    print("\nPosibles soluciones:")
+    print("1. Verificar que los datos de frecuencia aumenten monótonamente")
+    print("2. Revisar la extracción del ridge del Q-transform")
+    print("3. Probar con un rango de frecuencia más estrecho (80-200 Hz)")
