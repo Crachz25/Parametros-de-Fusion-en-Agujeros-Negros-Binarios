@@ -1,0 +1,39 @@
+from gwpy.timeseries import TimeSeries
+import numpy as np
+import astropy.units as u
+import matplotlib.pyplot as plt
+
+# =============================
+# Filtrado de la Señal
+# =============================
+
+print("Datos de l1_strain:", l1_strain)
+
+# Calcular el desplazamiento en número de muestras
+shift_seconds = -0.0065 * u.s 
+shift_samples = int(shift_seconds / l1_strain.dt)  # Dividir con unidades
+
+try:
+    # Crear una nueva TimeSeries desplazada
+    values_shifted = np.roll(l1_strain.value, shift_samples)
+    t0_shifted = l1_strain.t0 + shift_seconds  # Sumar con unidades
+    l1_shifted = TimeSeries(values_shifted, t0=t0_shifted.value,  # Usar .value para extraer el número
+                            dt=l1_strain.dt, name='Strain', channel=None)
+    print("Desplazamiento manual exitoso, l1_shifted:", l1_shifted)
+except Exception as e:
+    print("Error al desplazar manualmente l1_strain:", e)
+    l1_shifted = l1_strain 
+
+# Invertir fase
+l1_shifted = l1_shifted * -1
+
+# Crear figura
+fig, ax = plt.subplots()
+ax.plot(h1_strain.times.value, h1_strain.value, label='H1', color='blue')
+ax.plot(l1_shifted.times.value, l1_shifted.value, label='L1', color='red')
+ax.set_xlim(gps_event - 0.2, gps_event + 0.1)  # Zoom alrededor del evento
+ax.set_xlabel('Tiempo [GPS]')
+ax.set_ylabel('Strain')
+ax.set_title('Strain crudo de GW150914 con desplazamiento manual')
+ax.legend()
+plt.show()
