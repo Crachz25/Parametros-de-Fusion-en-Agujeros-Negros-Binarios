@@ -1,0 +1,70 @@
+from gwpy.timeseries import TimeSeries
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.signal import hilbert
+from scipy.ndimage import gaussian_filter1d
+from scipy.constants import G, c, pi
+
+# =============================
+# CONFIGURACIÓN INICIAL
+# =============================
+
+# Usar señal ya filtrada
+data = h1_filtered   # o l1_filtered
+gps_event = 1126259462.4  # GPS del evento GW150914
+
+# =============================
+# CÁLCULO DE FRECUENCIA INSTANTÁNEA
+# =============================
+
+analytic_signal = hilbert(data.value)
+phase = np.unwrap(np.angle(analytic_signal))
+freq = np.diff(phase) / (2 * np.pi * data.dt.value)
+time = data.times.value[1:]
+
+# Suavizado fuerte para reducir ruido (ajustable)
+freq_smooth = gaussian_filter1d(freq, sigma=23)
+
+# =============================
+# DERIVADA TEMPORAL df/dt
+# =============================
+df_dt = np.gradient(freq_smooth, time)
+
+# =============================
+# SELECCIÓN DEL RANGO TEMPORAL
+# =============================
+# Usamos sólo la parte del chirp (antes de la fusión)
+mask = (time > gps_event - 0.12) & (time < gps_event - 0.03)
+f = freq_smooth[mask]
+dfdt = df_dt[mask]
+tmask = time[mask]
+
+# =============================
+# CÁLCULO DE MASA CHIRP
+# =============================
+M_chirp_SI = (c**3 / G) * ((5/(96 * pi**(8/3))) * f**(-11/3) * dfdt)**(3/5)
+
+# Conversión a masas solares
+M_sun = 1.98847e30
+M_chirp = M_chirp_SI / M_sun
+
+# =============================
+# FILTRADO DE VALORES NO FÍSICOS
+# =============================
+valid = (M_chirp > 5) & (M_chirp < 80)
+M_mean = np.nanmedian(M_chirp[valid])
+
+print(f"Masa chirp estimada ≈ {M_mean:.2f} M_sun")
+
+# =============================
+# GRAFICAR RESULTADOS
+# =============================
+plt.figure(figsize=(8,4))
+plt.scatter(tmask, M_chirp, s=8, color='skyblue', alpha=0.5, label='Masa chirp instantánea')
+plt.axhline(M_mean, color='r', linestyle='--', label=f'Promedio: {M_mean:.2f} M_sun')
+plt.xlabel('Tiempo [s GPS]')
+plt.ylabel('Masa chirp [M☉]')
+plt.title('Estimación de la masa chirp de GW150914 (mejorada)')
+plt.legend()
+plt.grid(alpha=0.3)
+plt.show()
