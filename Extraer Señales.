@@ -1,0 +1,27 @@
+import gwpy
+from gwpy.timeseries import TimeSeries
+import matplotlib.pyplot as plt
+
+# =============================
+# Señal Cruda
+# =============================
+
+# GPS del evento GW150914
+gps_event = 1126259462.4
+start = gps_event - 16
+end = gps_event + 16
+
+# Descargar strain de H1 y L1
+h1_strain = TimeSeries.fetch_open_data('H1', start, end, verbose=True)
+l1_strain = TimeSeries.fetch_open_data('L1', start, end, verbose=True)
+
+# Crear figura y eje
+fig, ax = plt.subplots()
+ax.plot(h1_strain.times.value, h1_strain.value, label='H1', color='blue')
+ax.plot(l1_strain.times.value, l1_strain.value, label='L1', color='red')
+ax.set_xlim(gps_event - 16, gps_event + 16)  # intervalo temporal
+ax.set_xlabel('Tiempo [GPS]')
+ax.set_ylabel('Strain')
+ax.set_title('Strain crudo de GW150914')
+ax.legend()
+plt.show()
