@@ -1,0 +1,62 @@
+from gwpy.timeseries import TimeSeries
+import numpy as np
+import astropy.units as u
+import matplotlib.pyplot as plt
+from gwpy.signal import filter_design
+
+# =============================
+# Filtrado de la Señal
+# =============================
+
+print("Datos de l1_strain:", l1_strain)
+
+# Calcular el desplazamiento en número de muestras
+shift_seconds = 0.0065 * u.s  # Valor óptimo basado en la gráfica anterior
+shift_samples = int(shift_seconds / l1_strain.dt)
+
+try:
+    # Crear una nueva TimeSeries desplazada
+    values_shifted = np.roll(l1_strain.value, shift_samples)
+    t0_shifted = l1_strain.t0 + shift_seconds
+    l1_shifted = TimeSeries(values_shifted, t0=t0_shifted.value,
+                            dt=l1_strain.dt, name='Strain', channel=None)
+    print("Desplazamiento manual exitoso, l1_shifted:", l1_shifted)
+except Exception as e:
+    print("Error al desplazar manualmente l1_strain:", e)
+    l1_shifted = l1_strain 
+
+# Filtrado
+# Filtro pasa-banda (50-250 Hz)
+bp = filter_design.bandpass(50, 250, l1_shifted.sample_rate)
+
+# Filtros notch para líneas de ruido (60 Hz, 120 Hz, 180 Hz)
+notches = [filter_design.notch(line, l1_shifted.sample_rate) for line in [60, 120, 180]]
+
+# Combinar filtros
+zpk = filter_design.concatenate_zpks(bp, *notches)
+
+# Aplicar filtro a H1 y L1 desplazado
+h1_filtered = h1_strain.filter(zpk, filtfilt=True)
+l1_filtered = l1_shifted.filter(zpk, filtfilt=True)
+
+# Recortar para eliminar artefactos en los bordes con unidades explícitas
+start_time = h1_strain.t0 + 1 * u.s  # Convertir 1 segundo a Quantity
+duration = len(h1_strain) * h1_strain.dt  # Duración con unidades
+end_time = h1_strain.t0 + duration - 1 * u.s
+h1_filtered = h1_filtered.crop(start=start_time.value, end=end_time.value)
+
+start_time_l1 = l1_shifted.t0 + 1 * u.s
+duration_l1 = len(l1_shifted) * l1_shifted.dt
+end_time_l1 = l1_shifted.t0 + duration_l1 - 1 * u.s
+l1_filtered = l1_filtered.crop(start=start_time_l1.value, end=end_time_l1.value)
+
+# Graficar las señales filtradas
+fig, ax = plt.subplots()
+ax.plot(h1_filtered.times.value, h1_filtered.value, label='H1 filtrado', color='blue')
+ax.plot(l1_filtered.times.value, l1_filtered.value, label='L1 filtrado', color='red')
+ax.set_xlim(gps_event - 0.2, gps_event + 0.1)  # Zoom alrededor del evento
+ax.set_xlabel('Tiempo [GPS]')
+ax.set_ylabel('Strain')
+ax.set_title('Strain filtrado de GW150914')
+ax.legend()
+plt.show()
