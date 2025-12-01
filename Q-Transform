@@ -1,0 +1,12 @@
+# =============================
+# Q-Transform
+# =============================
+qspec = h1_filtered.q_transform(frange=(20, 500), qrange=(10, 30), outseg=(gps_event - 0.2, gps_event + 0.1))
+plot = qspec.plot(figsize=[8, 4])
+ax = plot.gca()
+ax.set_yscale('log')
+ax.set_xlabel('Tiempo [s] desde GPS event')
+ax.set_ylabel('Frecuencia [Hz]')
+ax.set_title('Q-transform de GW150914 (H1)')
+ax.colorbar(label='Energía normalizada')
+plot.show()
