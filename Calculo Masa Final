@@ -1,0 +1,179 @@
+import numpy as np
+from scipy.constants import G, c
+
+# ============================================
+# Calculo de la Masa Final Agujero Remanente
+# ============================================
+
+def calcular_masa_final(M_chirp_solar, q=None, metodo='aproximacion'):
+    """
+    Calcula la masa del agujero negro final a partir de la masa chirp
+
+    Parámetros:
+    -----------
+    M_chirp_solar : float
+        Masa chirp en masas solares
+    q : float, optional
+        Relación de masas q = m1/m2 (q >= 1)
+        Si es None, se asume q=1 (masas iguales)
+    metodo : str
+        'aproximacion' o 'numerico'
+
+    Retorna:
+    --------
+    dict con todas las masas calculadas
+    """
+
+    # Constantes físicas
+    M_sun = 1.989e30  # kg
+    eta_min = 0.0  # Límite físico para eta
+
+    if q is None:
+        q = 1.0  # Asumir masas iguales por defecto
+
+    # Calcular parámetro de masa simétrica eta
+    eta = q / (1 + q)**2
+
+    # Método 1: Aproximación analítica
+    if metodo == 'aproximacion':
+        # Calcular masa total M a partir de M_chirp
+        # M_chirp = M * eta^(3/5)
+        M_total = M_chirp_solar / (eta**(3/5))
+
+        # Calcular masas individuales
+        m1 = M_total * q / (1 + q)
+        m2 = M_total / (1 + q)
+
+        # Calcular masa final usando fórmula aproximada para agujeros negros sin espín
+        # M_final = M_total * (1 - E_radiada)
+        # Donde E_radiada ≈ 0.057 * (4*eta) para masas iguales
+        E_radiada = 0.057 * (4 * eta)
+        M_final = M_total * (1 - E_radiada)
+
+    # Método 2: Cálculo numérico más preciso
+    else:
+        def ecuaciones_masas(M_total, M_chirp_target, eta_val):
+            m1_calc = M_total * np.sqrt(eta_val) * (1 + np.sqrt(1 - 4*eta_val)) / (2 * np.sqrt(eta_val))
+            m2_calc = M_total * np.sqrt(eta_val) * (1 - np.sqrt(1 - 4*eta_val)) / (2 * np.sqrt(eta_val))
+            M_chirp_calc = M_total * eta_val**(3/5)
+            return M_chirp_calc - M_chirp_target
+
+        # Resolver para M_total
+        from scipy.optimize import fsolve
+        M_total_guess = M_chirp_solar / (eta**(3/5))
+        M_total = fsolve(ecuaciones_masas, M_total_guess, args=(M_chirp_solar, eta))[0]
+
+        # Calcular masas individuales
+        m1 = M_total * np.sqrt(eta) * (1 + np.sqrt(1 - 4*eta)) / (2 * np.sqrt(eta))
+        m2 = M_total * np.sqrt(eta) * (1 - np.sqrt(1 - 4*eta)) / (2 * np.sqrt(eta))
+
+        # Fórmula más precisa para la masa final (para agujeros negros sin espín)
+        # Basada en resultados numéricos de simulaciones
+        M_final = M_total * (1 - (0.0572 + 0.127 * eta))
+
+    # Calcular energía radiada en equivalentes de masa solar
+    E_radiada_solar = M_total - M_final
+
+    return {
+        'M_chirp': M_chirp_solar,
+        'M_total': M_total,
+        'm1': m1,
+        'm2': m2,
+        'q': q,
+        'eta': eta,
+        'M_final': M_final,
+        'E_radiada': E_radiada_solar,
+        'eficiencia_radiacion': (E_radiada_solar / M_total) * 100
+    }
+
+# EJEMPLO DE USO con GW150914
+if __name__ == "__main__":
+    # valor de Masa Chirp
+    M_chirp_GW150914 = 28.0  # M_sun
+
+    print("=== CÁLCULO DE MASAS PARA GW150914 ===")
+
+    # Caso 1: Asumiendo masas iguales (q=1)
+    resultado_iguales = calcular_masa_final(M_chirp_GW150914, q=1.0)
+
+    #print("\n1. ASUNIENDO MASAS IGUALES (q=1):")
+    #print(f"   Masa chirp: {resultado_iguales['M_chirp']:.2f} M_sun")
+    #print(f"   Masa total del sistema: {resultado_iguales['M_total']:.2f} M_sun")
+    #print(f"   m1 = {resultado_iguales['m1']:.2f} M_sun")
+    #print(f"   m2 = {resultado_iguales['m2']:.2f} M_sun")
+    #print(f"   Masa del agujero negro final: {resultado_iguales['M_final']:.2f} M_sun")
+    #print(f"   Energía radiada: {resultado_iguales['E_radiada']:.2f} M_sun")
+    #print(f"   Eficiencia de radiación: {resultado_iguales['eficiencia_radiacion']:.2f}%")
+
+    #Epsilon 0.05
+
+    print("\n1. ASUMIENDO EPSILON 0.05:")
+    print("   M1 = %.2f  M2 = %.2f  (M_sun)" % (m1, m2))
+    print("   Mchirp = %.3f M_sun" % Mchirp)
+    print("   Masa total inicial = %.3f M_sun" % Mtot)
+    print("   Eficiencia radiada ε = %.3f" % epsilon)
+    print("   → Masa final M_f = %.3f M_sun" % M_final)
+    print("   → Energía radiada = %.3f M_sun = %.3e J" % (E_rad_Msun, E_rad_J))
+
+    # Caso 2: Con la relación de masas real de GW150914 (q ≈ 36/29 ≈ 1.24)
+    resultado_real = calcular_masa_final(M_chirp_GW150914, q=1.24)
+
+    print("\n2. CON RELACIÓN DE MASAS REAL (q=1.24):")
+    print(f"   Masa chirp: {resultado_real['M_chirp']:.2f} M_sun")
+    print(f"   Masa total del sistema: {resultado_real['M_total']:.2f} M_sun")
+    print(f"   m1 = {resultado_real['m1']:.2f} M_sun")
+    print(f"   m2 = {resultado_real['m2']:.2f} M_sun")
+    print(f"   Masa del agujero negro final: {resultado_real['M_final']:.2f} M_sun")
+    print(f"   Energía radiada: {resultado_real['E_radiada']:.2f} M_sun")
+    print(f"   Eficiencia de radiación: {resultado_real['eficiencia_radiacion']:.2f}%")
+
+    # Caso 3: Usando el método numérico
+    resultado_numerico = calcular_masa_final(M_chirp_GW150914, q=1.24, metodo='numerico')
+
+    print("\n3. MÉTODO NUMÉRICO PRECISO:")
+    print(f"   Masa del agujero negro final: {resultado_numerico['M_final']:.2f} M_sun")
+
+    # Comparación con valores reportados por LIGO
+    print("\n=== COMPARACIÓN CON VALORES REPORTADOS ===")
+    print("Valores reportados por LIGO para GW150914:")
+    print("   m1 ≈ 36 M_sun, m2 ≈ 29 M_sun")
+    print("   M_total ≈ 65 M_sun")
+    print("   M_final ≈ 62 M_sun")
+    print("   Energía radiada ≈ 3 M_sun")
+
+    # Función para calcular M_chirp a partir de m1 y m2 (para verificar)
+    def calcular_M_chirp(m1, m2):
+        M_total = m1 + m2
+        eta = (m1 * m2) / (M_total ** 2)
+        return M_total * eta**(3/5)
+
+    M_chirp_verificacion = calcular_M_chirp(36, 29)
+    print(f"\nMasa chirp calculada para m1=36, m2=29: {M_chirp_verificacion:.2f} M_sun")
+
+# INTEGRACIÓN CON CÓDIGO ANTERIOR
+def integrar_con_codigo_anterior():
+    """
+    Esta función muestra cómo integrar el cálculo de la masa final
+    con tu código anterior que calcula la masa chirp
+    """
+
+    # Suponiendo que esto viene del código anterior
+    M_chirp_solar = Mchirp  # Reemplaza con el valor calculado con el codigo anterior
+
+    # Calcular masa final
+    resultado = calcular_masa_final(M_chirp_solar, q=1.24)
+
+    print("\n" + "="*50)
+    print("RESULTADOS INTEGRADOS")
+    print("="*50)
+    print(f"Masa chirp medida: {M_chirp_solar:.2f} M_sun")
+    print(f"Masa del agujero negro final: {resultado['M_final']:.2f} M_sun")
+    print(f"Energía radiada en ondas gravitacionales: {resultado['E_radiada']:.2f} M_sun")
+    print(f"Esto equivale a {resultado['E_radiada'] * 1.989e30:.2e} kg")
+    print(f"Energía en Joules: {resultado['E_radiada'] * 1.989e30 * c**2:.2e} J")
+
+    return resultado
+
+# Ejecutar la integración
+if __name__ == "__main__":
+    integrar_con_codigo_anterior()
