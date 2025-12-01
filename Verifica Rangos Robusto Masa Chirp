@@ -1,0 +1,30 @@
+# Ejecutar el ajuste y obtener residuos
+(popt, pcov), residuals_history, sigma_history = robust_chirp_fit_residuals(
+    f_insp, t_insp_corrected, n_iterations=3
+)
+
+# =============================
+# Grafica Metodo Robusto
+# =============================
+
+n_iter = len(residuals_history)
+
+plt.figure(figsize=(6*n_iter, 5))
+
+for i in range(n_iter):
+    plt.subplot(1, n_iter, i+1)
+
+    # Histograma
+    plt.hist(residuals_history[i], bins=40, alpha=0.7)
+
+    # Líneas de corte
+    plt.axvline(+sigma_history[i], color='red', linestyle='--', linewidth=2)
+    plt.axvline(-sigma_history[i], color='red', linestyle='--', linewidth=2)
+
+    plt.title(f"Iteración {i+1}\nResiduales + cortes ±3σ")
+    plt.xlabel("Residual")
+    plt.ylabel("Cuenta")
+    plt.grid(True)
+
+plt.tight_layout()
+plt.show()
