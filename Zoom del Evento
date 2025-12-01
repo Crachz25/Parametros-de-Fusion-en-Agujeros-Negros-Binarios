@@ -3,10 +3,6 @@ import numpy as np
 import astropy.units as u
 import matplotlib.pyplot as plt
 
-# =============================
-# Filtrado de la Señal
-# =============================
-
 print("Datos de l1_strain:", l1_strain)
 
 # Calcular el desplazamiento en número de muestras
